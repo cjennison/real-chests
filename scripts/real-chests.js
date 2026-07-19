@@ -31,7 +31,8 @@ function getConfig(actor) {
     dc: Number(f.dc ?? 10),
     trapFormula: f.trapFormula ?? "",
     trapType: f.trapType ?? "none",
-    note: f.note ?? ""
+    note: f.note ?? "",
+    connectionId: f.connectionId ?? ""
   };
 }
 
