@@ -1,0 +1,74 @@
+<div class="rc-chest">
+
+  {{#if isGM}}
+  {{!-- GM view: configuration + contents management --}}
+  <form class="rc-config">
+    <div class="rc-row">
+      <label class="rc-check"><input type="checkbox" name="locked" {{#if cfg.locked}}checked{{/if}} /> Locked (requires a check)</label>
+    </div>
+    <div class="rc-row">
+      <label>Skill Check</label>
+      <select name="skill">
+        {{#each skills}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </div>
+    <div class="rc-row">
+      <label>DC</label>
+      <input type="number" name="dc" value="{{cfg.dc}}" min="1" max="40" />
+    </div>
+    <div class="rc-row">
+      <label>Trap Damage (formula)</label>
+      <input type="text" name="trapFormula" value="{{cfg.trapFormula}}" placeholder="e.g. 2d6" />
+    </div>
+    <div class="rc-row">
+      <label>Trap Damage Type</label>
+      <select name="trapType">
+        {{#each damageTypes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </div>
+    <div class="rc-row">
+      <label>DM Note</label>
+      <textarea name="note" rows="2" placeholder="Private reminder shown only to you.">{{cfg.note}}</textarea>
+    </div>
+    <button type="submit" class="rc-save"><i class="fas fa-save"></i> Save Configuration</button>
+  </form>
+
+  <h3 class="rc-heading">Contents <span class="rc-hint">(drag items here to add)</span></h3>
+  <ul class="rc-items">
+    {{#each items}}
+    <li class="rc-item">
+      <img src="{{img}}" width="28" height="28" />
+      <span class="rc-name">{{name}}{{#if showQty}} &times;{{qty}}{{/if}}</span>
+      <button type="button" class="rc-mini danger" data-action="rcDelete" data-item-id="{{id}}" title="Remove"><i class="fas fa-trash"></i></button>
+    </li>
+    {{else}}
+    <li class="rc-empty">Empty — drag items here to stock the chest.</li>
+    {{/each}}
+  </ul>
+
+  {{else}}
+  {{!-- Player view --}}
+    {{#if unlocked}}
+    <h3 class="rc-heading">{{actor.name}} — Loot</h3>
+    <ul class="rc-items">
+      {{#each items}}
+      <li class="rc-item">
+        <img src="{{img}}" width="28" height="28" />
+        <span class="rc-name">{{name}}{{#if showQty}} &times;{{qty}}{{/if}}</span>
+        <button type="button" class="rc-mini" data-action="rcTake" data-item-id="{{id}}" title="Take"><i class="fas fa-hand"></i> Take</button>
+      </li>
+      {{else}}
+      <li class="rc-empty">The chest is empty.</li>
+      {{/each}}
+    </ul>
+    {{else}}
+    <div class="rc-locked">
+      <i class="fas fa-lock rc-lock-icon"></i>
+      <p>{{actor.name}} is closed.</p>
+      <button type="button" class="rc-attempt" data-action="rcAttempt"><i class="fas fa-key"></i> Attempt to Open</button>
+      <p class="rc-hint">Your request will be sent to the DM for approval.</p>
+    </div>
+    {{/if}}
+  {{/if}}
+
+</div>

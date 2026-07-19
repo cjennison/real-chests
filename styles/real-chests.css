@@ -1,0 +1,111 @@
+.rc-sheet .window-content {
+  padding: 8px 10px;
+  overflow-y: auto;
+}
+
+.rc-chest .rc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.rc-chest .rc-row > label:first-child {
+  flex: 0 0 130px;
+  font-weight: bold;
+}
+
+.rc-chest .rc-row input[type="text"],
+.rc-chest .rc-row input[type="number"],
+.rc-chest .rc-row select,
+.rc-chest .rc-row textarea {
+  flex: 1;
+}
+
+.rc-chest .rc-check {
+  font-weight: bold;
+}
+
+.rc-chest .rc-save {
+  margin-top: 6px;
+}
+
+.rc-chest .rc-heading {
+  margin: 10px 0 4px;
+  border-bottom: 1px solid var(--color-border-light-primary, #666);
+  padding-bottom: 2px;
+}
+
+.rc-chest .rc-hint {
+  font-size: 0.8em;
+  font-weight: normal;
+  opacity: 0.7;
+}
+
+.rc-chest .rc-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rc-chest .rc-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.rc-chest .rc-item img {
+  border: none;
+  flex: 0 0 auto;
+}
+
+.rc-chest .rc-item .rc-name {
+  flex: 1;
+}
+
+.rc-chest .rc-mini {
+  flex: 0 0 auto;
+  width: auto;
+  line-height: 1.4;
+  padding: 0 8px;
+}
+
+.rc-chest .rc-mini.danger {
+  color: #a01818;
+}
+
+.rc-chest .rc-empty {
+  opacity: 0.6;
+  font-style: italic;
+  padding: 6px 4px;
+}
+
+.rc-chest .rc-locked {
+  text-align: center;
+  padding: 16px 8px;
+}
+
+.rc-chest .rc-lock-icon {
+  font-size: 2.2em;
+  opacity: 0.7;
+  margin-bottom: 6px;
+}
+
+.rc-chest .rc-attempt {
+  width: auto;
+  padding: 4px 16px;
+  margin: 4px auto;
+}
+
+.rc-approval fieldset {
+  margin: 6px 0;
+  border: 1px solid #999;
+  border-radius: 4px;
+}
+
+.rc-approval .rc-force {
+  display: block;
+  margin-top: 8px;
+}
