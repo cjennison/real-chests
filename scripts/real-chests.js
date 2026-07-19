@@ -275,11 +275,19 @@ class RealChestSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   _onRender(context, options) {
     super._onRender?.(context, options);
+    const el = this.element;
     // Enable the GM to drag items onto the chest to stock it.
     if (game.user.isGM) {
-      const el = this.element;
       el.addEventListener("dragover", ev => ev.preventDefault());
       el.addEventListener("drop", this.#onDrop.bind(this));
+    } else {
+      // Players only have LIMITED ownership, so ActorSheetV2 disables every
+      // control on render. Re-enable the interactive action buttons players
+      // are meant to use (Attempt to Open / Take).
+      for (const btn of el.querySelectorAll('button[data-action="rcAttempt"], button[data-action="rcTake"]')) {
+        btn.disabled = false;
+        btn.removeAttribute("disabled");
+      }
     }
   }
 
@@ -359,7 +367,7 @@ class RealChestSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 /*  Chest creation                              */
 /* -------------------------------------------- */
 
-async function createChest({ name = "Chest", img = "icons/containers/chest/chest-wooden-brown.webp", drop = true } = {}) {
+async function createChest({ name = "Chest", img = "icons/svg/chest.svg", drop = true } = {}) {
   const LIMITED = CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED;
   const actor = await Actor.create({
     name,
