@@ -90,6 +90,44 @@ function emit(payload) {
   game.socket.emit(SOCKET, payload);
 }
 
+/**
+ * Broadcast a semantic Real Chests event as a Foundry hook so other modules
+ * (e.g. an AI flavor-text module) can react. Fires `real-chests.<name>` on every
+ * connected client exactly once: locally here and on other clients via socket.
+ * If the container has a Connection Manager connection selected, dispatches the
+ * enriched context to it (the manager routes execution to the active GM).
+ *
+ * @param {string} name  Event name, e.g. "opened", "failed", "relocked".
+ * @param {object} ctx   Context payload describing what happened.
+ */
+function fireEvent(name, ctx = {}) {
+  const payload = { module: MODULE_ID, event: name, ...ctx };
+  Hooks.callAll(`${MODULE_ID}.${name}`, payload);
+  emit({ type: "event", name, ctx: payload });
+  if (ctx.connectionId) {
+    game.modules.get("connection-manager")?.api?.run?.(ctx.connectionId, payload);
+  }
+}
+
+/** Build the shared event context for a chest action. */
+function chestEventCtx(chest, pc, extra = {}) {
+  const cfg = getConfig(chest);
+  return {
+    kind: "container",
+    container: chest?.name ?? "a container",
+    containerId: chest?.id ?? null,
+    character: pc?.name ?? "Someone",
+    actorId: pc?.id ?? null,
+    skill: cfg.skill ? (CONFIG.DND5E?.skills?.[cfg.skill]?.label ?? cfg.skill) : null,
+    dc: cfg.dc ?? null,
+    note: cfg.note ?? null,
+    scene: canvas.scene?.name ?? null,
+    sceneId: canvas.scene?.id ?? null,
+    connectionId: cfg.connectionId || null,
+    ...extra
+  };
+}
+
 async function onSocket(data) {
   switch (data?.type) {
     case "attempt": return handleAttemptAsGM(data);
@@ -97,6 +135,7 @@ async function onSocket(data) {
     case "take": return handleTakeAsGM(data);
     case "open": return handleOpenAsGM(data);
     case "refresh": return rerenderChest(data.chestId);
+    case "event": return void Hooks.callAll(`${MODULE_ID}.${data.name}`, data.ctx);
   }
 }
 
@@ -166,7 +205,12 @@ async function handleDecisionAsPlayer(data) {
 
   // No check needed -> open immediately.
   if (data.forceUnlock || !cfg.locked || !cfg.skill) {
-    return unlockAndOpen(chest);
+    unlockAndOpen(chest);
+    fireEvent("opened", chestEventCtx(chest, pc, {
+      success: true, forced: !!data.forceUnlock,
+      action: data.forceUnlock ? "forced open by the DM" : "opened"
+    }));
+    return;
   }
 
   if (!pc) {
@@ -184,11 +228,21 @@ async function handleDecisionAsPlayer(data) {
     flavor: `${skillLabel} check to open ${chest.name} (DC ${cfg.dc}) &mdash; ${success ? "<strong>Success!</strong>" : "<strong>Failed</strong>"}`
   });
 
-  if (success) return unlockAndOpen(chest);
+  if (success) {
+    unlockAndOpen(chest);
+    fireEvent("opened", chestEventCtx(chest, pc, {
+      success: true, forced: false, roll: roll.total,
+      action: `opened after a successful ${skillLabel} check`
+    }));
+    return;
+  }
 
   // Failure -> spring the trap, if any.
+  let trapDamage = null, trapType = null;
   if (cfg.trapFormula) {
     const trap = await new Roll(cfg.trapFormula).evaluate();
+    trapDamage = trap.total;
+    trapType = cfg.trapType;
     await trap.toMessage({
       speaker: ChatMessage.getSpeaker({ actor: pc }),
       flavor: `${chest.name} was trapped! ${cfg.trapType !== "none" ? cfg.trapType + " " : ""}damage`
@@ -197,6 +251,10 @@ async function handleDecisionAsPlayer(data) {
   } else {
     ui.notifications.info(`${chest.name} stays firmly shut.`);
   }
+  fireEvent("failed", chestEventCtx(chest, pc, {
+    success: false, roll: roll.total, trapped: !!cfg.trapFormula,
+    trapDamage, trapType, action: `failed the ${skillLabel} check`
+  }));
 }
 
 /** Mark a chest unlocked for this client and open its loot view. */
@@ -224,6 +282,11 @@ async function setChestOpened(chest, opened) {
   if (!opened) unlockedChests.delete(chest.id);
   emit({ type: "refresh", chestId: chest.id });
   rerenderChest(chest.id);
+  if (!opened) {
+    fireEvent("relocked", chestEventCtx(chest, userCharacter(), {
+      action: "re-locked by the DM"
+    }));
+  }
 }
 
 /** GM side: move an item from a chest into a player's character. */
@@ -296,7 +359,14 @@ class RealChestSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       }))
     ).map(d => ({ ...d, selected: d.key === cfg.trapType }));
 
-    return { actor, cfg, isGM, unlocked, opened: cfg.opened, items, skills, damageTypes };
+    const cmApi = game.modules.get("connection-manager")?.api;
+    const connections = [{ id: "", name: "— None —", selected: !cfg.connectionId }].concat(
+      (cmApi?.getConnections?.() ?? []).map(c => ({
+        id: c.id, name: c.name, selected: c.id === cfg.connectionId
+      }))
+    );
+
+    return { actor, cfg, isGM, unlocked, opened: cfg.opened, items, skills, damageTypes, connections };
   }
 
   async _onRender(context, options) {
@@ -395,7 +465,8 @@ class RealChestSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       dc: Number(d.dc ?? 10),
       trapFormula: (d.trapFormula ?? "").trim(),
       trapType: d.trapType ?? "none",
-      note: d.note ?? ""
+      note: d.note ?? "",
+      connectionId: d.connectionId ?? ""
     });
     ui.notifications.info(`${this.actor.name} configuration saved.`);
     this.render(false);
@@ -423,7 +494,7 @@ async function createChest({ name = "Chest", img = "icons/svg/chest.svg", drop =
     flags: {
       [MODULE_ID]: {
         isChest: true,
-        config: { locked: true, opened: false, skill: "", dc: 10, trapFormula: "", trapType: "none", note: "" }
+        config: { locked: true, opened: false, skill: "", dc: 10, trapFormula: "", trapType: "none", note: "", connectionId: "" }
       },
       core: { sheetClass: `${MODULE_ID}.RealChestSheet` }
     }

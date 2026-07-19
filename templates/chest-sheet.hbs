@@ -30,6 +30,12 @@
       <label>DM Note</label>
       <textarea name="note" rows="2" placeholder="Private reminder shown only to you.">{{cfg.note}}</textarea>
     </div>
+    <div class="rc-row">
+      <label>On event &rarr; Connection</label>
+      <select name="connectionId">
+        {{#each connections}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+      </select>
+    </div>
     <button type="submit" class="rc-save"><i class="fas fa-save"></i> Save Configuration</button>
   </form>
 
