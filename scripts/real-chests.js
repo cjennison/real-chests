@@ -273,18 +273,25 @@ class RealChestSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     return { actor, cfg, isGM, unlocked, items, skills, damageTypes };
   }
 
-  _onRender(context, options) {
-    super._onRender?.(context, options);
+  async _onRender(context, options) {
+    await super._onRender?.(context, options);
     const el = this.element;
     // Enable the GM to drag items onto the chest to stock it.
     if (game.user.isGM) {
       el.addEventListener("dragover", ev => ev.preventDefault());
       el.addEventListener("drop", this.#onDrop.bind(this));
-    } else {
-      // Players only have LIMITED ownership, so ActorSheetV2 disables every
-      // control on render. Re-enable the interactive action buttons players
-      // are meant to use (Attempt to Open / Take).
-      for (const btn of el.querySelectorAll('button[data-action="rcAttempt"], button[data-action="rcTake"]')) {
+    }
+  }
+
+  /**
+   * The framework disables every form control on non-editable sheets (players
+   * only have LIMITED ownership). Keep the interactive action buttons players
+   * are meant to use (Attempt to Open / Take) enabled whenever it toggles.
+   */
+  _toggleDisabled(disabled) {
+    super._toggleDisabled(disabled);
+    if (!game.user.isGM) {
+      for (const btn of this.element.querySelectorAll('button[data-action="rcAttempt"], button[data-action="rcTake"]')) {
         btn.disabled = false;
         btn.removeAttribute("disabled");
       }
