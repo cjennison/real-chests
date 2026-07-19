@@ -225,7 +225,7 @@ async function handleDecisionAsPlayer(data) {
   const skillLabel = CONFIG.DND5E?.skills?.[cfg.skill]?.label ?? cfg.skill;
   const success = roll.total >= cfg.dc;
   await roll.toMessage({
-    speaker: ChatMessage.getSpeaker({ actor: pc }),
+    speaker: { actor: pc?.id, alias: pc?.name },
     flavor: `${skillLabel} check to open ${chest.name} (DC ${cfg.dc}) &mdash; ${success ? "<strong>Success!</strong>" : "<strong>Failed</strong>"}`
   });
 
@@ -245,7 +245,7 @@ async function handleDecisionAsPlayer(data) {
     trapDamage = trap.total;
     trapType = cfg.trapType;
     await trap.toMessage({
-      speaker: ChatMessage.getSpeaker({ actor: pc }),
+      speaker: { actor: pc?.id, alias: pc?.name },
       flavor: `${chest.name} was trapped! ${cfg.trapType !== "none" ? cfg.trapType + " " : ""}damage`
     });
     await applyTrapDamage(pc, trap.total, cfg.trapType);
