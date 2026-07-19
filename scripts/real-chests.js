@@ -543,8 +543,7 @@ Hooks.on("getSceneControlButtons", controls => {
     icon: "fa-solid fa-box-open",
     button: true,
     order: 99,
-    onChange: () => createChest(),
-    onClick: () => createChest()
+    onChange: () => createChest()
   };
   // v13+ controls is an object keyed by control name; v12 is an array.
   if (Array.isArray(controls)) {
