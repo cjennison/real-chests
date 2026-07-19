@@ -86,6 +86,30 @@ Click **Close / Re-lock** to shut it again — the next player who interacts wit
 
 4. Click **Take** on any item to move it into your character's inventory. Whatever you leave behind stays for the rest of the party.
 
+## Integrations & hooks
+
+Real Chests broadcasts a Foundry hook on every connected client when something happens, so
+other modules can react. Each fires once per client with a context payload:
+
+| Hook | Fired when |
+| --- | --- |
+| `real-chests.opened` | A container is opened (skill success, or force-opened by the DM). |
+| `real-chests.failed` | A player fails the check (includes trap details, if any). |
+| `real-chests.relocked` | The DM closes / re-locks a container. |
+
+```js
+Hooks.on("real-chests.opened", (ctx) => {
+  // ctx: { character, actorId, container, containerId, skill, dc, roll, scene, action, ... }
+});
+```
+
+### Optional: Connection Manager (AI flavor text)
+
+If the [Connection Manager](https://github.com/cjennison/connection-manager) module is active,
+the container config gains an **On event → Connection** dropdown. Pick a connection (e.g. an
+**AI Flavor Text** narrator) and, whenever that container fires an event, the enriched context
+is sent to it — for example posting a short, context-aware line of narration to chat.
+
 ## License
 
 [MIT](LICENSE) — free and open source. Contributions welcome.
