@@ -109,3 +109,7 @@
   display: block;
   margin-top: 8px;
 }
+
+.rc-sheet .rc-status { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; gap: 8px; }
+.rc-sheet .rc-open { color: #3fb950; }
+.rc-sheet .rc-closed { color: #d29922; }

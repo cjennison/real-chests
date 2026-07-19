@@ -26,6 +26,7 @@ function getConfig(actor) {
   return {
     isChest: actor?.getFlag(MODULE_ID, "isChest") === true,
     locked: f.locked ?? true,
+    opened: f.opened ?? false,
     skill: f.skill ?? "",
     dc: Number(f.dc ?? 10),
     trapFormula: f.trapFormula ?? "",
@@ -48,6 +49,9 @@ function userCharacter(user = game.user) {
 function rerenderChest(chestId) {
   const actor = game.actors.get(chestId);
   if (!actor) return;
+  // The persistent shared "opened" flag is authoritative. Reconcile this
+  // client's optimistic local unlock so a DM re-close reverts the player view.
+  if (getConfig(actor).opened === false) unlockedChests.delete(chestId);
   for (const app of Object.values(actor.apps ?? {})) app.render(false);
 }
 
@@ -91,6 +95,7 @@ async function onSocket(data) {
     case "attempt": return handleAttemptAsGM(data);
     case "decision": return handleDecisionAsPlayer(data);
     case "take": return handleTakeAsGM(data);
+    case "open": return handleOpenAsGM(data);
     case "refresh": return rerenderChest(data.chestId);
   }
 }
@@ -199,6 +204,26 @@ function unlockAndOpen(chest) {
   unlockedChests.add(chest.id);
   chest.sheet.render(true);
   rerenderChest(chest.id);
+  // Ask the GM to persist a shared "opened" state so the container stays open
+  // for every player (even ones who didn't roll) until the DM closes it.
+  if (!getConfig(chest).opened) emit({ type: "open", chestId: chest.id });
+}
+
+/** GM side: a player (or the GM) opened a chest -> persist the shared open state. */
+async function handleOpenAsGM(data) {
+  if (game.users.activeGM?.id !== game.user.id) return;
+  const chest = game.actors.get(data.chestId);
+  if (chest) await setChestOpened(chest, true);
+}
+
+/** GM-only writer for the shared, persistent open/closed state of a container. */
+async function setChestOpened(chest, opened) {
+  const cfg = getConfig(chest);
+  if (cfg.opened === opened) { rerenderChest(chest.id); return; }
+  await chest.setFlag(MODULE_ID, "config", { ...cfg, opened });
+  if (!opened) unlockedChests.delete(chest.id);
+  emit({ type: "refresh", chestId: chest.id });
+  rerenderChest(chest.id);
 }
 
 /** GM side: move an item from a chest into a player's character. */
@@ -234,7 +259,8 @@ class RealChestSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       rcAttempt: RealChestSheet.#onAttempt,
       rcTake: RealChestSheet.#onTake,
       rcDelete: RealChestSheet.#onDelete,
-      rcToggleLock: RealChestSheet.#onToggleLock
+      rcToggleLock: RealChestSheet.#onToggleLock,
+      rcClose: RealChestSheet.#onClose
     },
     form: { handler: RealChestSheet.#onSubmitConfig, submitOnChange: false, closeOnSubmit: false }
   };
@@ -251,7 +277,7 @@ class RealChestSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const actor = this.actor;
     const cfg = getConfig(actor);
     const isGM = game.user.isGM;
-    const unlocked = isGM || unlockedChests.has(actor.id);
+    const unlocked = isGM || cfg.opened || unlockedChests.has(actor.id);
 
     const items = actor.items.map(i => {
       const qty = i.system?.quantity ?? 1;
@@ -270,7 +296,7 @@ class RealChestSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       }))
     ).map(d => ({ ...d, selected: d.key === cfg.trapType }));
 
-    return { actor, cfg, isGM, unlocked, items, skills, damageTypes };
+    return { actor, cfg, isGM, unlocked, opened: cfg.opened, items, skills, damageTypes };
   }
 
   async _onRender(context, options) {
@@ -353,6 +379,12 @@ class RealChestSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     this.render(false);
   }
 
+  /** GM: close/re-lock a container that is currently open, resetting it for all players. */
+  static async #onClose(event, target) {
+    await setChestOpened(this.actor, false);
+    this.render(false);
+  }
+
   static async #onSubmitConfig(event, form, formData) {
     const d = formData.object;
     const cfg = getConfig(this.actor);
@@ -391,7 +423,7 @@ async function createChest({ name = "Chest", img = "icons/svg/chest.svg", drop =
     flags: {
       [MODULE_ID]: {
         isChest: true,
-        config: { locked: true, skill: "", dc: 10, trapFormula: "", trapType: "none", note: "" }
+        config: { locked: true, opened: false, skill: "", dc: 10, trapFormula: "", trapType: "none", note: "" }
       },
       core: { sheetClass: `${MODULE_ID}.RealChestSheet` }
     }
@@ -426,7 +458,7 @@ Hooks.once("init", () => {
 Hooks.once("ready", () => {
   game.socket.on(SOCKET, onSocket);
   const mod = game.modules.get(MODULE_ID);
-  mod.api = { createChest, getConfig, isChest, doTake, unlockedChests, RealChestSheet };
+  mod.api = { createChest, getConfig, isChest, doTake, setChestOpened, unlockedChests, RealChestSheet };
   console.log(`${MODULE_ID} | ready. Create a chest with: game.modules.get('${MODULE_ID}').api.createChest()`);
 });
 

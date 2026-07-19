@@ -46,6 +46,15 @@
     {{/each}}
   </ul>
 
+  <div class="rc-row rc-status">
+    <span>Status:
+      {{#if opened}}<strong class="rc-open">Open to players</strong>{{else}}<strong class="rc-closed">Closed</strong>{{/if}}
+    </span>
+    {{#if opened}}
+    <button type="button" class="rc-mini" data-action="rcClose" title="Close and re-lock for all players"><i class="fas fa-lock"></i> Close / Re-lock</button>
+    {{/if}}
+  </div>
+
   {{else}}
   {{!-- Player view --}}
     {{#if unlocked}}
